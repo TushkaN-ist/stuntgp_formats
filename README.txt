@@ -1,0 +1,1 @@
+all information about file formats got from https://sgp.halamix2.pl/wiki/Main_Page
