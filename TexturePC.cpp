@@ -25,12 +25,62 @@ bool GenerateBmp(unsigned short width, unsigned short height, char*& dataBmp, un
 	return false;
 }
 
-void setPixel(unsigned char* p, unsigned short c) {
+void setPixel(unsigned char* p, unsigned short c, bool swapRB) {
 
 	p[0] = round((c >> 10 & 31) * (255.0 / 31.0));
 	p[1] = round((c >> 5 & 31) * (255.0 / 31.0));
 	p[2] = round((c & 31) * (255.0 / 31.0));
 	p[3] = 0xFF;
+	if (swapRB) {
+		unsigned char b = p[2];
+		p[2] = p[0];
+		p[0] = b;
+	}
+}
+
+void DecodeToBMP_V2(unsigned int* dataRGBA, char* pcData, char* finalPoint) {
+	unsigned short paletteSize = *(unsigned short*)pcData;
+	unsigned int* palette = (unsigned int*)(pcData+2);
+	unsigned char* pixelPoint = (unsigned char*)(palette + paletteSize);
+
+	while ((char*)dataRGBA < finalPoint) {
+		*dataRGBA = palette[*pixelPoint];
+		dataRGBA++;
+		pixelPoint++;
+	}
+}
+
+void DecodeToBMP_V345(unsigned short version,unsigned int* dataRGBA,char* pcData,char* finalPoint) {
+	unsigned short* pixelData = (unsigned short*)pcData;
+	bool swapRB = version == 5;
+	setPixel((unsigned char*)dataRGBA, *pixelData++, swapRB);
+	unsigned int unpacked = 1;
+	dataRGBA++;
+	while ((char*)dataRGBA < finalPoint) {
+		unsigned short read = *pixelData;
+		if (read >= 0x8000) {
+			setPixel((unsigned char*)dataRGBA, read, swapRB);
+			dataRGBA++;
+			pixelData++;
+		}
+		else {
+			if (read >= 0x4000) {
+				unsigned int repeats = int(((read >> 11) & 7) + 2);
+				unsigned int location = int(read & 0x7FF) + 1;
+				while (repeats-- > 0) {
+					*(dataRGBA) = *(dataRGBA++ - location);
+				}
+				pixelData++;
+			}
+			else {
+				if (read > 0) {
+					memset(dataRGBA, 0, read * 4);
+					dataRGBA += read;
+					pixelData++;
+				}
+			}
+		}
+	}
 }
 
 bool ReadPC(char* data) {
@@ -46,33 +96,16 @@ bool ReadPC(char* data) {
 		if (GenerateBmp(header->width, header->height, Bmpdata, size)) {
 
 			unsigned int* dataRGBA = (unsigned int*)(Bmpdata + 54);
-			unsigned short* pixelData = (unsigned short*)(data + 10);
-			setPixel((unsigned char*)dataRGBA, *pixelData++);
-			unsigned int unpacked = 1;
-			dataRGBA++;
-			while ((char*)dataRGBA < Bmpdata + size) {
-				unsigned short read = *pixelData;
-				if (read >= 0x8000){
-					setPixel((unsigned char*)dataRGBA, read);
-					dataRGBA++;
-					pixelData++;
-				}
-				else {
-					if (read >= 0x4000) {
-						unsigned int repeats = int(((read >> 11) & 7) + 2);
-						unsigned int location = int(read & 0x7FF)+1;
-						while (repeats-->0) {
-							*(dataRGBA) = *(dataRGBA++ - location);
-						}
-						pixelData++;
-					}else{
-						if (read > 0) {
-							memset(dataRGBA, 0, read*4);
-							dataRGBA += read;
-							pixelData++;
-						}
-					}
-				}
+			switch (header->version)
+			{
+			case 2://PS2 version index color ✖
+				DecodeToBMP_V2(dataRGBA, data+10, Bmpdata + size);
+				break;
+			case 3://PC version ✓
+			case 4://DC version needed unwiddle ✖
+			case 5://PS2 version need swap RB channel ✓
+				DecodeToBMP_V345(header->version, dataRGBA, data+10, Bmpdata + size);
+				break;
 			}
 			FileWrite("OutTexture.bmp", Bmpdata, size);
 			free(Bmpdata);
