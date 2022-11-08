@@ -79,5 +79,5 @@ public:
 	void ReconstructNames();
 	void ReconstructHoldenIDS();
 };
-bool PMDRead(void* data);
+PMD* PMDRead(void* data);
 void DrawMesh(Lod &pointLOD, Mesh &pointMesh);
