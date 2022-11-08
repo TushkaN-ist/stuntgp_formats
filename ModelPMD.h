@@ -13,7 +13,7 @@ struct Transform {
 
 struct UVMap {
 	float x, y;
-	short vertexID, unk1;
+	unsigned short vertexID, unk1;
 	int unk2;
 };
 
@@ -21,26 +21,31 @@ struct Vertex {
 	float x, y, z, w;
 };
 
-struct Lod {
-	short unk0;
-	short unk1;
-	char unk[0x18];
-	float always;
-	int unkdata;
-	int sufraceEach;
-	int lod0, lod1, lod2, lod3;
-	int numLods;
-};
 
 struct Mesh {
-	short unk[4];
+	short typeFile,typeData;
+	short unk[2];
 	short transformIndex;
 	unsigned char zeros[18];
 	float weight;
 	short unk0_Index, unk1_Index, polysCount, UVsCount;
-	int vertexCount, UVsPoint, vertPoint, polysPoint;
+	int vertexCount;
+	UVMap *UVsPoint;
+	Vertex *vertPoint;
+	PolyData *polysPoint;
 	int zeros3[2];
 };
+
+struct Lod{
+	short typeFile,typeData;
+	char unk1[28];
+	int unk2,size;
+	unsigned int pointsData[8];//[0,1,2,3,4,9,8,10] << ids offset array
+	Mesh *meshLOD[4];//size 4
+	int sizeReconstructMesh,unk3;
+	int point_6,unk4;//[6] << ids offset array
+};
+
 struct Header {
 	char magic[0x18];
 	int type;
@@ -54,11 +59,11 @@ public:
 	Header *header;
 	Transform *transforms;
 	UVMap *mapUVs;
-	Vertex *vertexs2;//Шар вертексов, зачем хз, возможно коллайдер или subvertex
+	Vertex *normals;//Шар вертексов, зачем хз, возможно коллайдер
 	Vertex *vertexs;
 	Vertex *boundsVertex;//Не уверен что так
 	PolyData *polygons;
-	Lod *lods;
+	Lod *lod;
 	Mesh *meshs;
 	unsigned short *faces;
 	char *names;
@@ -69,5 +74,10 @@ public:
 	void SetOffsetPoint(unsigned short offsetId, T*& point);
 	PMD(void* point);
 	bool IsValid();
+	void LODFill();
+	void ReconstructMesh();
+	void ReconstructNames();
+	void ReconstructHoldenIDS();
 };
 bool PMDRead(void* data);
+void DrawMesh(Lod &pointLOD, Mesh &pointMesh);
