@@ -219,7 +219,7 @@ void Lod::RePoints(PMDHeader *header){
 		}
 		c=0;
 		while(c<countMeshLod){
-			ConvertMatrix((transforms+c)->matrix, header->type == TypePMD::Car && (c%countMeshLod)>10 && (c%countMeshLod)<17);
+			ConvertMatrix((transforms+c)->matrix, header->type == TypePMD::Car && (c%countMeshLod)>10 && (c%countMeshLod)<21);
 			c++;
 		}
 }
